@@ -154,18 +154,13 @@ final class RectorConfigBuilder
      */
     private array $groupLoadedSets = [];
 
-<<<<<<< HEAD
     /**
      * @api soon to be used
      */
     private ?bool $isWithPhpSetsUsed = null;
 
-=======
-    private ?bool $isWithPhpSetsUsed = null;
-
     private ?bool $isWithPhpLevelUsed = null;
 
->>>>>>> fd1d685822 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
     public function __invoke(RectorConfig $rectorConfig): void
     {
         // @experimental 2024-06
@@ -526,16 +521,11 @@ final class RectorConfigBuilder
         }
 
         if ($pickedArguments === []) {
-<<<<<<< HEAD
             $projectPhpVersion = ComposerJsonPhpVersionResolver::resolveFromCwdOrFail();
             $phpLevelSets = PhpLevelSetResolver::resolveFromPhpVersion($projectPhpVersion);
 
             $this->sets = array_merge($this->sets, $phpLevelSets);
 
-=======
-            $this->sets[] = $this->resolvePhpSetsFromComposerJsonPhpVersion();
-
->>>>>>> 7c75defb11 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
             return $this;
         }
 
@@ -610,127 +600,64 @@ final class RectorConfigBuilder
      */
     public function withPhp53Sets(): self
     {
-<<<<<<< HEAD
         $this->isWithPhpSetsUsed = true;
 
-=======
-<<<<<<< HEAD
->>>>>>> fd1d685822 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         $this->sets = array_merge($this->sets, PhpLevelSetResolver::resolveFromPhpVersion(PhpVersion::PHP_53));
 
-=======
-        $this->isWithPhpSetsUsed = true;
-
-        $this->sets[] = LevelSetList::UP_TO_PHP_53;
->>>>>>> 7c75defb11 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         return $this;
     }
 
     public function withPhp54Sets(): self
     {
-<<<<<<< HEAD
         $this->isWithPhpSetsUsed = true;
 
-=======
-<<<<<<< HEAD
->>>>>>> fd1d685822 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         $this->sets = array_merge($this->sets, PhpLevelSetResolver::resolveFromPhpVersion(PhpVersion::PHP_54));
 
-=======
-        $this->isWithPhpSetsUsed = true;
-
-        $this->sets[] = LevelSetList::UP_TO_PHP_54;
->>>>>>> 7c75defb11 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         return $this;
     }
 
     public function withPhp55Sets(): self
     {
-<<<<<<< HEAD
         $this->isWithPhpSetsUsed = true;
 
-=======
-<<<<<<< HEAD
->>>>>>> fd1d685822 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         $this->sets = array_merge($this->sets, PhpLevelSetResolver::resolveFromPhpVersion(PhpVersion::PHP_55));
 
-=======
-        $this->isWithPhpSetsUsed = true;
-
-        $this->sets[] = LevelSetList::UP_TO_PHP_55;
->>>>>>> 7c75defb11 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         return $this;
     }
 
     public function withPhp56Sets(): self
     {
-<<<<<<< HEAD
         $this->isWithPhpSetsUsed = true;
 
-=======
-<<<<<<< HEAD
->>>>>>> fd1d685822 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         $this->sets = array_merge($this->sets, PhpLevelSetResolver::resolveFromPhpVersion(PhpVersion::PHP_56));
 
-=======
-        $this->isWithPhpSetsUsed = true;
-
-        $this->sets[] = LevelSetList::UP_TO_PHP_56;
->>>>>>> 7c75defb11 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         return $this;
     }
 
     public function withPhp70Sets(): self
     {
-<<<<<<< HEAD
         $this->isWithPhpSetsUsed = true;
 
-=======
-<<<<<<< HEAD
->>>>>>> fd1d685822 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         $this->sets = array_merge($this->sets, PhpLevelSetResolver::resolveFromPhpVersion(PhpVersion::PHP_70));
 
-=======
-        $this->isWithPhpSetsUsed = true;
-
-        $this->sets[] = LevelSetList::UP_TO_PHP_70;
->>>>>>> 7c75defb11 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         return $this;
     }
 
     public function withPhp71Sets(): self
     {
-<<<<<<< HEAD
         $this->isWithPhpSetsUsed = true;
 
-=======
-<<<<<<< HEAD
->>>>>>> fd1d685822 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         $this->sets = array_merge($this->sets, PhpLevelSetResolver::resolveFromPhpVersion(PhpVersion::PHP_71));
 
-=======
-        $this->isWithPhpSetsUsed = true;
-
-        $this->sets[] = LevelSetList::UP_TO_PHP_71;
->>>>>>> 7c75defb11 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         return $this;
     }
 
     public function withPhp72Sets(): self
     {
-<<<<<<< HEAD
         $this->isWithPhpSetsUsed = true;
 
-=======
-<<<<<<< HEAD
->>>>>>> fd1d685822 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         $this->sets = array_merge($this->sets, PhpLevelSetResolver::resolveFromPhpVersion(PhpVersion::PHP_72));
 
-=======
-        $this->isWithPhpSetsUsed = true;
-
-        $this->sets[] = LevelSetList::UP_TO_PHP_72;
->>>>>>> 7c75defb11 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         return $this;
     }
 
@@ -745,19 +672,10 @@ final class RectorConfigBuilder
 
     public function withPhp74Sets(): self
     {
-<<<<<<< HEAD
         $this->isWithPhpSetsUsed = true;
 
-=======
-<<<<<<< HEAD
->>>>>>> fd1d685822 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         $this->sets = array_merge($this->sets, PhpLevelSetResolver::resolveFromPhpVersion(PhpVersion::PHP_74));
 
-=======
-        $this->isWithPhpSetsUsed = true;
-
-        $this->sets[] = LevelSetList::UP_TO_PHP_74;
->>>>>>> 7c75defb11 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
         return $this;
     }
 
@@ -784,7 +702,7 @@ final class RectorConfigBuilder
         bool $twig = false,
         bool $phpunit = false,
     ): self {
-        Notifier::notifyNotSuitableMethodForPHP74(__METHOD__ . '()');
+        Notifier::notifyNotSuitableMethodForPHP74(__METHOD__);
 
         if ($deadCode) {
             $this->sets[] = SetList::DEAD_CODE;
@@ -1042,8 +960,6 @@ final class RectorConfigBuilder
         $this->isTypeCoverageLevelUsed = true;
 
         $levelRules = LevelRulesResolver::resolve($level, TypeDeclarationLevel::RULES, __METHOD__);
-<<<<<<< HEAD
-=======
 
         $this->rules = array_merge($this->rules, $levelRules);
 
@@ -1059,15 +975,28 @@ final class RectorConfigBuilder
 
         $this->isWithPhpLevelUsed = true;
 
-        $phpLevelSetFilePath = $this->resolvePhpSetsFromComposerJsonPhpVersion();
+        $phpVersion = ComposerJsonPhpVersionResolver::resolveFromCwdOrFail();
 
         $setRectorsResolver = new SetRectorsResolver();
-        $phpRectorRules = $setRectorsResolver->resolveFromFilePathForPhpLevel($phpLevelSetFilePath);
+        $setFilePaths = PhpLevelSetResolver::resolveFromPhpVersion($phpVersion);
 
-        $levelRules = LevelRulesResolver::resolve($level, $phpRectorRules, __METHOD__);
->>>>>>> fd1d685822 ([DX] [Experimental] Add withPhpLevel() to raise PHP lele one rule at a time)
+        $rectorRulesWithConfiguration = $setRectorsResolver->resolveFromFilePathsIncludingConfiguration($setFilePaths);
 
-        $this->rules = array_merge($this->rules, $levelRules);
+        foreach ($rectorRulesWithConfiguration as $position => $rectorRuleWithConfiguration) {
+            // add rules untill level is reached
+            if ($position > $level) {
+                continue;
+            }
+
+            if (is_string($rectorRuleWithConfiguration)) {
+                $this->rules[] = $rectorRuleWithConfiguration;
+            } elseif (is_array($rectorRuleWithConfiguration)) {
+                foreach ($rectorRuleWithConfiguration as $rectorRule => $rectorRuleConfiguration) {
+                    /** @var class-string<ConfigurableRectorInterface> $rectorRule */
+                    $this->withConfiguredRule($rectorRule, $rectorRuleConfiguration);
+                }
+            }
+        }
 
         return $this;
     }
@@ -1158,22 +1087,5 @@ final class RectorConfigBuilder
         $this->reportingRealPath = $absolutePath;
 
         return $this;
-    }
-
-    private function resolvePhpSetsFromComposerJsonPhpVersion(): string
-    {
-        // use composer.json PHP version
-        $projectComposerJsonFilePath = getcwd() . '/composer.json';
-        if (file_exists($projectComposerJsonFilePath)) {
-            $projectPhpVersion = ProjectComposerJsonPhpVersionResolver::resolve($projectComposerJsonFilePath);
-            if (is_int($projectPhpVersion)) {
-                return PhpLevelSetResolver::resolveFromPhpVersion($projectPhpVersion);
-            }
-        }
-
-        throw new InvalidConfigurationException(sprintf(
-            'We could not find local "composer.json" to determine your PHP version.%sPlease, fill the PHP version set in withPhpSets() manually.',
-            PHP_EOL
-        ));
     }
 }
