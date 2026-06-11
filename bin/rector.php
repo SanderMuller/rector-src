@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Nette\Utils\Json;
+use Rector\Bootstrap\AutoloadFileParameterResolver;
 use Rector\Bootstrap\RectorConfigsResolver;
 use Rector\ChangesReporting\Output\JsonOutputFormatter;
 use Rector\Configuration\Option;
@@ -126,6 +127,8 @@ $autoloadIncluder->loadIfExistsAndNotLoadedYet(__DIR__ . '/../vendor/scoper-auto
 $autoloadIncluder->autoloadProjectAutoloaderFile();
 $autoloadIncluder->autoloadRectorInstalledAsGlobalDependency();
 $autoloadIncluder->autoloadFromCommandLine();
+
+AutoloadFileParameterResolver::resolveFromArgv($_SERVER['argv']);
 
 $rectorConfigsResolver = new RectorConfigsResolver();
 
