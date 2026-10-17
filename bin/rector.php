@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Nette\Utils\Json;
+use PHPStan\Turbo\TurboExtensionEnabler;
+use PHPStan\Turbo\TurboProcessRestarter;
 use Rector\Bootstrap\AutoloadFileParameterResolver;
 use Rector\Bootstrap\RectorConfigsResolver;
 use Rector\ChangesReporting\Output\JsonOutputFormatter;
@@ -28,6 +30,15 @@ define('__RECTOR_RUNNING__', true);
 // Require Composer autoload.php
 $autoloadIncluder = new AutoloadIncluder();
 $autoloadIncluder->includeDependencyOrRepositoryVendorAutoloadIfExists();
+
+// Load PHPStan Turbo, a native extension shipped next to PHPStan's phar. It must run
+// before preload.php, because Turbo declares its own PhpParser\NodeTraverser.
+$phpstanPhar = __DIR__ . '/../vendor/phpstan/phpstan/phpstan.phar';
+if (is_file($phpstanPhar)) {
+    TurboProcessRestarter::restartIfSuitable($_SERVER['argv'], $phpstanPhar);
+    TurboExtensionEnabler::trustOwnTypesIfSuitable($_SERVER['argv'], $phpstanPhar);
+    TurboExtensionEnabler::activateIfCompatible($phpstanPhar);
+}
 
 final class AutoloadIncluder
 {
