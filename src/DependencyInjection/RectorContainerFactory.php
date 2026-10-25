@@ -8,7 +8,9 @@ use Rector\Autoloading\BootstrapFilesIncluder;
 use Rector\Caching\Detector\ChangedFilesDetector;
 use Rector\Config\RectorConfig;
 use Rector\NodeTypeResolver\DependencyInjection\PHPStanServicesFactory;
+use Rector\Parallel\ForkSupport;
 use Rector\ValueObject\Bootstrap\BootstrapConfigs;
+use Symfony\Component\Console\Input\ArgvInput;
 
 final class RectorContainerFactory
 {
@@ -26,7 +28,15 @@ final class RectorContainerFactory
 
         /** @var BootstrapFilesIncluder $bootstrapFilesIncluder */
         $bootstrapFilesIncluder = $rectorConfig->get(BootstrapFilesIncluder::class);
-        $bootstrapFilesIncluder->includeBootstrapFiles($rectorConfig->get(PHPStanServicesFactory::class)->getContainer());
+
+        // forked parallel workers include them after the fork; a spawned worker never forks
+        if (ForkSupport::isAvailable() && new ArgvInput()->getFirstArgument() !== 'worker') {
+            $bootstrapFilesIncluder->defer();
+        } else {
+            $bootstrapFilesIncluder->includeBootstrapFiles(
+                $rectorConfig->get(PHPStanServicesFactory::class)->getContainer()
+            );
+        }
 
         return $rectorConfig;
     }

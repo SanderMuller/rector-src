@@ -7,6 +7,7 @@ namespace Rector\Application;
 use Nette\Utils\FileSystem as UtilsFileSystem;
 use PHPStan\Parser\ParserErrorsException;
 use Rector\Application\Provider\CurrentFileProvider;
+use Rector\Autoloading\BootstrapFilesIncluder;
 use Rector\Caching\Detector\ChangedFilesDetector;
 use Rector\Configuration\Option;
 use Rector\Configuration\Parameter\SimpleParameterProvider;
@@ -51,6 +52,7 @@ final class ApplicationFileProcessor
         private readonly ArrayParametersMerger $arrayParametersMerger,
         private readonly MissConfigurationReporter $missConfigurationReporter,
         private readonly Skipper $skipper,
+        private readonly BootstrapFilesIncluder $bootstrapFilesIncluder,
     ) {
     }
 
@@ -99,6 +101,8 @@ final class ApplicationFileProcessor
         if ($configuration->isParallel()) {
             $processResult = $this->runParallel($filePaths, $input, $postFileCallback);
         } else {
+            // held back for forked workers, but this run has none
+            $this->bootstrapFilesIncluder->includeDeferredBootstrapFiles();
             $processResult = $this->processFiles($filePaths, $configuration, $preFileCallback, $postFileCallback);
         }
 

@@ -69,6 +69,30 @@ final readonly class WorkerCommandLineFactory
             $workerCommandArray[] = escapeshellarg((string) $arg);
         }
 
+        return implode(' ', $workerCommandArray) . ' ' . $this->createWorkerArguments(
+            $mainCommandClass,
+            $workerCommandName,
+            $input,
+            $identifier,
+            $port
+        );
+    }
+
+    /**
+     * The worker command name and its arguments, without the PHP binary and the main script
+     *
+     * @param class-string<Command> $mainCommandClass
+     */
+    public function createWorkerArguments(
+        string $mainCommandClass,
+        string $workerCommandName,
+        InputInterface $input,
+        string $identifier,
+        int $port
+    ): string {
+        $mainCommand = $this->commandFromReflectionFactory->create($mainCommandClass);
+
+        $workerCommandArray = [];
         $workerCommandArray[] = $workerCommandName;
 
         $mainCommandOptionNames = $this->getCommandOptionNames($mainCommand);

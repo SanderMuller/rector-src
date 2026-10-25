@@ -23,6 +23,8 @@ use Throwable;
  */
 final class ParallelProcess
 {
+    private const float WAITPID_INTERVAL_IN_SECONDS = 0.01;
+
     private Process $process;
 
     private Encoder $encoder;
@@ -44,11 +46,27 @@ final class ParallelProcess
 
     private ?TimerInterface $timer = null;
 
+    private ?int $forkedPid = null;
+
+    private ?TimerInterface $waitTimer = null;
+
+    /**
+     * Runs the worker in a forked child, instead of the command
+     *
+     * @var (callable(resource): never)|null
+     */
+    private $forkedWorker;
+
+    /**
+     * @param (callable(resource $stdErr): never)|null $forkedWorker
+     */
     public function __construct(
         private readonly string $command,
         private readonly LoopInterface $loop,
-        private readonly int $timetoutInSeconds
+        private readonly int $timetoutInSeconds,
+        ?callable $forkedWorker = null
     ) {
+        $this->forkedWorker = $forkedWorker;
     }
 
     /**
@@ -65,6 +83,15 @@ final class ParallelProcess
 
         $this->stdErr = $tmp;
 
+        $this->onData = $onData;
+        $this->onError = $onError;
+
+        $forkedWorker = $this->forkedWorker;
+        if ($forkedWorker !== null) {
+            $this->startForked($forkedWorker, $tmp, $onExit);
+            return;
+        }
+
         // on Unix, the command runs in a wrapping shell; exec replaces the shell with the worker,
         // so terminating the process stops the worker itself, not only the shell
         $command = DIRECTORY_SEPARATOR === '\\' ? $this->command : 'exec ' . $this->command;
@@ -75,24 +102,9 @@ final class ParallelProcess
         ]);
         $this->process->start($this->loop);
 
-        $this->onData = $onData;
-        $this->onError = $onError;
-
         $this->process->on(ReactEvent::EXIT, function ($exitCode) use ($onExit): void {
-            $stdErr = $this->stdErr;
-            if ($stdErr === null) {
-                throw new ParallelShouldNotHappenException();
-            }
-
             $this->cancelTimer();
-
-            rewind($stdErr);
-
-            /** @var string $streamContents */
-            $streamContents = stream_get_contents($stdErr);
-            $onExit($exitCode, $streamContents);
-
-            fclose($stdErr);
+            $onExit($exitCode, $this->readStdErr());
         });
     }
 
@@ -105,7 +117,7 @@ final class ParallelProcess
         $this->encoder->write($data);
         $this->timer = $this->loop->addTimer($this->timetoutInSeconds, function (): void {
             // a worker that does not answer in time cannot be asked to stop either
-            $this->process->terminate();
+            $this->terminate();
 
             $onError = $this->onError;
 
@@ -116,6 +128,11 @@ final class ParallelProcess
 
     public function quit(): void
     {
+        if ($this->forkedPid !== null) {
+            $this->quitForked();
+            return;
+        }
+
         if (! $this->process->isRunning()) {
             return;
         }
@@ -157,6 +174,104 @@ final class ParallelProcess
             $onError = $this->onError;
             $onError($throwable);
         });
+    }
+
+    /**
+     * @param callable(resource $stdErr): never $forkedWorker
+     * @param resource $stdErr
+     * @param callable(?int $onExit, string $output) : void $onExit
+     */
+    private function startForked(callable $forkedWorker, $stdErr, callable $onExit): void
+    {
+        // memory the main process freed but still holds would otherwise be copied into every worker
+        gc_mem_caches();
+
+        $pid = pcntl_fork();
+        if ($pid === -1) {
+            throw new ParallelShouldNotHappenException('Forking a parallel worker failed.');
+        }
+
+        if ($pid === 0) {
+            $forkedWorker($stdErr);
+        }
+
+        $this->forkedPid = $pid;
+        $this->waitTimer = $this->loop->addPeriodicTimer(self::WAITPID_INTERVAL_IN_SECONDS, function () use (
+            $pid,
+            $onExit
+        ): void {
+            $status = 0;
+            $result = pcntl_waitpid($pid, $status, WNOHANG);
+            if ($result === 0) {
+                return;
+            }
+
+            $this->cancelWaitTimer();
+            $this->cancelTimer();
+
+            // a worker killed by a signal has no exit code, like a spawned one
+            $exitCode = null;
+            if ($result > 0 && pcntl_wifexited($status)) {
+                $exitStatus = pcntl_wexitstatus($status);
+                $exitCode = $exitStatus === false ? null : $exitStatus;
+            }
+
+            $onExit($exitCode, $this->readStdErr());
+        });
+    }
+
+    private function quitForked(): void
+    {
+        // the worker is already gone
+        if (! $this->waitTimer instanceof TimerInterface) {
+            return;
+        }
+
+        // the process can be quit before its connection is bound, e.g. on quitAll() after an error
+        if (! isset($this->encoder)) {
+            $this->terminate();
+            return;
+        }
+
+        // ending the connection stops the worker's loop, and the wait timer reaps it
+        $this->encoder->end();
+    }
+
+    private function terminate(): void
+    {
+        if ($this->forkedPid !== null) {
+            posix_kill($this->forkedPid, SIGTERM);
+            return;
+        }
+
+        $this->process->terminate();
+    }
+
+    private function readStdErr(): string
+    {
+        $stdErr = $this->stdErr;
+        if ($stdErr === null) {
+            throw new ParallelShouldNotHappenException();
+        }
+
+        rewind($stdErr);
+
+        /** @var string $streamContents */
+        $streamContents = stream_get_contents($stdErr);
+        fclose($stdErr);
+        $this->stdErr = null;
+
+        return $streamContents;
+    }
+
+    private function cancelWaitTimer(): void
+    {
+        if (! $this->waitTimer instanceof TimerInterface) {
+            return;
+        }
+
+        $this->loop->cancelTimer($this->waitTimer);
+        $this->waitTimer = null;
     }
 
     private function cancelTimer(): void
