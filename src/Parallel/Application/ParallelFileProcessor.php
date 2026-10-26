@@ -7,18 +7,22 @@ namespace Rector\Parallel\Application;
 use Clue\React\NDJson\Decoder;
 use Clue\React\NDJson\Encoder;
 use Nette\Utils\Random;
+use PHPStan\Turbo\ForkedChild;
 use React\EventLoop\StreamSelectLoop;
 use React\Socket\ConnectionInterface;
 use React\Socket\TcpServer;
+use Rector\Autoloading\BootstrapFilesIncluder;
 use Rector\Configuration\Option;
 use Rector\Configuration\Parameter\SimpleParameterProvider;
 use Rector\Console\Command\ProcessCommand;
+use Rector\Console\Command\WorkerCommand;
 use Rector\Parallel\Command\WorkerCommandLineFactory;
 use Rector\Parallel\Enum\Action;
 use Rector\Parallel\Enum\Content;
 use Rector\Parallel\Enum\ReactCommand;
 use Rector\Parallel\Enum\ReactEvent;
 use Rector\Parallel\Enum\StreamFormat;
+use Rector\Parallel\ForkSupport;
 use Rector\Parallel\ValueObject\Bridge;
 use Rector\Parallel\ValueObject\ParallelProcess;
 use Rector\Parallel\ValueObject\ProcessPool;
@@ -27,6 +31,8 @@ use Rector\ValueObject\Error\SystemError;
 use Rector\ValueObject\ProcessResult;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\StringInput;
+use Symfony\Component\Console\Output\StreamOutput;
 use Throwable;
 
 /**
@@ -38,11 +44,27 @@ final class ParallelFileProcessor
 {
     private const int SYSTEM_ERROR_LIMIT = 50;
 
+    /**
+     * @var int[]
+     */
+    private const array FATAL_ERROR_TYPES = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR];
+
     private ProcessPool $processPool;
+
+    private WorkerCommand $workerCommand;
 
     public function __construct(
         private readonly WorkerCommandLineFactory $workerCommandLineFactory,
+        private readonly BootstrapFilesIncluder $bootstrapFilesIncluder,
     ) {
+    }
+
+    /**
+     * The worker command depends on this class, so it cannot be a constructor dependency
+     */
+    public function autowire(WorkerCommand $workerCommand): void
+    {
+        $this->workerCommand = $workerCommand;
     }
 
     /**
@@ -142,6 +164,8 @@ final class ParallelFileProcessor
 
         $timeoutInSeconds = SimpleParameterProvider::provideIntParameter(Option::PARALLEL_JOB_TIMEOUT_IN_SECONDS);
 
+        $isForking = ForkSupport::isAvailable();
+
         $processSpawner = function (int $bucketKey) use (
             $parallelResultCollector,
             &$jobsPerWorker,
@@ -155,7 +179,9 @@ final class ParallelFileProcessor
             $streamSelectLoop,
             $timeoutInSeconds,
             $handleErrorCallable,
-            &$processedFilesCount
+            &$processedFilesCount,
+            $isForking,
+            $tcpServer
         ): void {
             $processIdentifier = Random::generate();
             $bucketKeyByIdentifier[$processIdentifier] = $bucketKey;
@@ -169,7 +195,22 @@ final class ParallelFileProcessor
                 $serverPort,
             );
 
-            $parallelProcess = new ParallelProcess($workerCommandLine, $streamSelectLoop, $timeoutInSeconds);
+            $forkedWorker = $isForking ? $this->createForkedWorker(
+                $tcpServer,
+                $this->workerCommandLineFactory->createWorkerArguments(
+                    ProcessCommand::class,
+                    'worker',
+                    $input,
+                    $processIdentifier,
+                    $serverPort,
+                )
+            ) : null;
+            $parallelProcess = new ParallelProcess(
+                $workerCommandLine,
+                $streamSelectLoop,
+                $timeoutInSeconds,
+                $forkedWorker
+            );
 
             $parallelProcess->start(
                 // 1. callable on data
@@ -243,6 +284,9 @@ final class ParallelFileProcessor
             ($processSpawner)($bucketKey);
         }
 
+        // every worker is forked by now, so the bootstrap files can no longer leak into them
+        $this->bootstrapFilesIncluder->includeDeferredBootstrapFiles();
+
         $streamSelectLoop->run();
 
         if ($reachedSystemErrorsCountLimit) {
@@ -262,6 +306,65 @@ final class ParallelFileProcessor
         }
 
         return $parallelResultCollector->createProcessResult();
+    }
+
+    /**
+     * Mirrors @see https://github.com/phpstan/phpstan-src/blob/2.3.x/src/Parallel/ForkedProcess.php
+     *
+     * @return callable(resource $stdErr): never
+     */
+    private function createForkedWorker(TcpServer $tcpServer, string $workerArguments): callable
+    {
+        return function ($stdErr) use ($tcpServer, $workerArguments): never {
+            // the worker connects to the main process like a spawned one, and accepts no connections itself
+            $tcpServer->close();
+
+            // stay off the shared OPcache: siblings that fill it at the same time crash each other
+            ini_set('opcache.enable', '0');
+
+            // report the worker's own memory peak, not the one of the main process
+            memory_reset_peak_usage();
+
+            $this->reportFatalErrorsTo($stdErr);
+
+            // the last shutdown function: skip the destructors and the extension shutdown inherited from the main process
+            register_shutdown_function(static function (): void {
+                ForkedChild::exitImmediately();
+            });
+
+            $this->bootstrapFilesIncluder->includeDeferredBootstrapFiles();
+
+            exit($this->workerCommand->run(new StringInput($workerArguments), new StreamOutput($stdErr)));
+        };
+    }
+
+    /**
+     * A forked worker shares the console of the main process. Without this, a fatal error is printed there,
+     * and the main process gets an empty error message.
+     *
+     * @param resource $stdErr
+     */
+    private function reportFatalErrorsTo($stdErr): void
+    {
+        ini_set('display_errors', '0');
+        if (in_array(ini_get('error_log'), ['', false], true)) {
+            ini_set('log_errors', '0');
+        }
+
+        // unbuffered, so the report needs no memory when the worker ran out of it
+        stream_set_write_buffer($stdErr, 0);
+
+        register_shutdown_function(static function () use ($stdErr): void {
+            $error = error_get_last();
+            if ($error === null || ! in_array($error['type'], self::FATAL_ERROR_TYPES, true)) {
+                return;
+            }
+
+            fwrite(
+                $stdErr,
+                sprintf("PHP Fatal error:  %s in %s on line %d\n", $error['message'], $error['file'], $error['line'])
+            );
+        });
     }
 
     /**

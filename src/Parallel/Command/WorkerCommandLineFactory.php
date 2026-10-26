@@ -69,6 +69,30 @@ final readonly class WorkerCommandLineFactory
             $workerCommandArray[] = escapeshellarg((string) $arg);
         }
 
+        return implode(' ', $workerCommandArray) . ' ' . $this->createWorkerArguments(
+            $mainCommandClass,
+            $workerCommandName,
+            $input,
+            $identifier,
+            $port
+        );
+    }
+
+    /**
+     * The worker command name and its arguments, without the PHP binary and the main script
+     *
+     * @param class-string<Command> $mainCommandClass
+     */
+    public function createWorkerArguments(
+        string $mainCommandClass,
+        string $workerCommandName,
+        InputInterface $input,
+        string $identifier,
+        int $port
+    ): string {
+        $mainCommand = $this->commandFromReflectionFactory->create($mainCommandClass);
+
+        $workerCommandArray = [];
         $workerCommandArray[] = $workerCommandName;
 
         $mainCommandOptionNames = $this->getCommandOptionNames($mainCommand);
@@ -142,7 +166,8 @@ final readonly class WorkerCommandLineFactory
     }
 
     /**
-     * The workers get PHPStan Turbo on their command line, so the main process needs no restart to enable it.
+     * Spawned workers do not inherit command-line -d options, so PHPStan Turbo is passed to them explicitly.
+     * This also covers a main process that did not restart into Turbo, for example without pcntl.
      *
      * @return string[]
      */

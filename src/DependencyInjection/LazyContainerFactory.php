@@ -45,6 +45,7 @@ use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\DependencyInjection\PHPStanServicesFactory;
 use Rector\NodeTypeResolver\NodeTypeResolver;
 use Rector\NodeTypeResolver\Reflection\BetterReflection\SourceLocatorProvider\DynamicSourceLocatorProvider;
+use Rector\Parallel\Application\ParallelFileProcessor;
 use Rector\PhpAttribute\AnnotationToAttributeMapper;
 use Rector\PhpAttribute\AnnotationToAttributeMapper\ArrayAnnotationToAttributeMapper;
 use Rector\PhpAttribute\AnnotationToAttributeMapper\ArrayItemNodeAnnotationToAttributeMapper;
@@ -154,6 +155,12 @@ final class LazyContainerFactory
         $rectorConfig->singleton(ListRulesCommand::class);
         $rectorConfig->singleton(ComposerBasedCommand::class);
 
+        $rectorConfig->afterResolving(
+            ParallelFileProcessor::class,
+            static function (ParallelFileProcessor $parallelFileProcessor) use ($rectorConfig): void {
+                $parallelFileProcessor->autowire($rectorConfig->make(WorkerCommand::class));
+            }
+        );
     }
 
     private function registerFileProcessing(RectorConfig $rectorConfig): void
