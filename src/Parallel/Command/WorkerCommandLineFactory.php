@@ -166,7 +166,8 @@ final readonly class WorkerCommandLineFactory
     }
 
     /**
-     * The workers get PHPStan Turbo on their command line, so the main process needs no restart to enable it.
+     * Spawned workers do not inherit command-line -d options, so PHPStan Turbo is passed to them explicitly.
+     * This also covers a main process that did not restart into Turbo, for example without pcntl.
      *
      * @return string[]
      */
